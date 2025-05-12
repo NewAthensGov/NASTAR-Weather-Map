@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waffle House Locations Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        #container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        #controls {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        #map {
+            height: 60vh;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            width: 100%;
+        }
+
+        #status {
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #e8f5e9;
+            border-radius: 5px;
+            display: none;
+        }
+
+        #progress {
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .filter-group {
+            margin-bottom: 15px;
+        }
+
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .filter-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        .filter-group input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        .info-window {
+            max-width: 300px;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .info-window h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .info-window p {
+            margin-bottom: 5px;
+            color: #666;
+        }
+
+        .loading {
+            display: block;
+            color: #666;
+            font-style: italic;
+        }
+
+        .error {
+            display: block;
+            color: #red;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            #container {
+                grid-template-columns: 1fr;
+            }
+
+            #controls {
+                margin-bottom: 20px;
+            }
+
+            #map {
+                height: 50vh;
+            }
+
+            .filter-group select, .filter-group input[type="text"] {
+                font-size: 14px;
+                padding: 6px;
+            }
+        }
+
+        .leaflet-popup-content {
+            max-width: 300px;
+            padding: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="controls">
+            <h2>Waffle House Location Filter</h2>
+            <div class="filter-group">
+                <label for="status-filter">Status:</label>
+                <select id="status-filter">
+                    <option value="">All Statuses</option>
+                    <option value="A">Active (A)</option>
+                    <option value="C">Closed (C)</option>
+                    <option value="CT">Closed Temporarily (CT)</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="state-filter">State:</label>
+                <select id="state-filter">
+                    <option value="">All States</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="search-input">Search by City:</label>
+                <input type="text" id="search-input" placeholder="Enter city name...">
+            </div>
+        </div>
+        <div id="map"></div>
+    </div>
+    <div id="status" class="loading"></div>
+    <div id="progress"></div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js"></script>
+    <script>
+        let map;
+        let markers = [];
+        let locations = [];
+        let filteredLocations = [];
+        const batchSize = 50;
+
+        function initMap() {
+            map = L.map('map').setView([37.0902, -95.7129], 4);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        function updateProgress(loaded, total) {
+            document.getElementById('progress').innerHTML = `
+                Processing: ${loaded}/${total} locations (${Math.round((loaded/total)*100)}%)
+            `;
+        }
+
+        function processBatch(batch) {
+            return new Promise(resolve => {
+                batch.forEach((location, index) => {
+                    try {
+                        const lat = parseFloat(location.Latitude?.replace(/[^0-9.-]/g, '') || 0);
+                        const lng = parseFloat(location.Longitude?.replace(/[^0-9.-]/g, '') || 0);
+
+                        if (isNaN(lat) || isNaN(lng)) {
+                            console.error('Invalid coordinates:', location);
+                            return;
+                        }
+
+                        const color = getStatusColor(location.Status?.trim() || 'A');
+                        const marker = L.circleMarker([lat, lng], {
+                            color: color,
+                            radius: 5,
+                            opacity: 0.8
+                        }).addTo(map);
+
+                        const popupContent = `
+                            <div class="info-window">
+                                <h3>${location['Store Code']}</h3>
+                                <p>${location.Address}</p>
+                                <p>${location.City}, ${location.State} ${location['Postal Code']}</p>
+                                <p>Status: ${location.Status}</p>
+                            </div>
+                        `;
+
+                        marker.bindPopup(popupContent);
+
+                        markers.push(marker);
+                        updateProgress(index + 1, batch.length);
+
+                    } catch (error) {
+                        console.error('Error processing location:', error);
+                    }
+                });
+                resolve();
+            });
+        }
+
+        function getStatusColor(status) {
+            switch(status) {
+                case 'C':
+                    return 'red';
+                case 'CT':
+                    return 'yellow';
+                default:
+                    return 'green';
+            }
+        }
+
+        function filterLocations() {
+            const statusFilter = document.getElementById('status-filter').value;
+            const stateFilter = document.getElementById('state-filter').value;
+            const searchFilter = document.getElementById('search-input').value.toLowerCase();
+
+            filteredLocations = locations.filter(location => {
+                const matchesStatus = !statusFilter || location.Status?.trim() === statusFilter;
+                const matchesState = !stateFilter || location.State === stateFilter;
+                const matchesSearch = !searchFilter ||
+                    location.City?.toLowerCase().includes(searchFilter) ||
+                    location.Address?.toLowerCase().includes(searchFilter);
+
+                return matchesStatus && matchesState && matchesSearch;
+            });
+
+            updateMarkers();
+        }
+
+        function updateMarkers() {
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+
+            const batches = [];
+            const numBatches = Math.ceil(filteredLocations.length / batchSize);
+
+            for (let i = 0; i < numBatches; i++) {
+                const start = i * batchSize;
+                const end = start + batchSize;
+                batches.push(filteredLocations.slice(start, end));
+            }
+
+            let currentBatch = 0;
+            const processNextBatch = () => {
+                if (currentBatch < batches.length) {
+                    processBatch(batches[currentBatch])
+                        .then(() => {
+                            currentBatch++;
+                            processNextBatch();
+                        });
+                }
+            };
+
+            processNextBatch();
+        }
+
+        function loadCSV() {
+            document.getElementById('status').innerHTML = 'Loading locations...';
+            document.getElementById('status').style.display = 'block';
+
+            fetch('waffle_house_locations.csv')
+                .then(response => response.text())
+                .then(data => {
+                    const result = Papa.parse(data, { header: true });
+                    locations = result.data;
+
+                    const states = Array.from(new Set(locations.map(loc => loc.State)));
+                    const stateFilter = document.getElementById('state-filter');
+                    states.forEach(state => {
+                        const option = document.createElement('option');
+                        option.value = state;
+                        option.textContent = state;
+                        stateFilter.appendChild(option);
+                    });
+
+                    filteredLocations = locations;
+                    updateMarkers();
+                    document.getElementById('status').style.display = 'none';
+                })
+                .catch(error => {
+                    document.getElementById('status').innerHTML = 'Error loading locations!';
+                    document.getElementById('status').classList.add('error');
+                    console.error('Error loading CSV:', error);
+                });
+        }
+
+        document.getElementById('status-filter').addEventListener('change', filterLocations);
+        document.getElementById('state-filter').addEventListener('change', filterLocations);
+        document.getElementById('search-input').addEventListener('input', filterLocations);
+
+        initMap();
+        loadCSV();
+    </script>
+</body>
+</html>
