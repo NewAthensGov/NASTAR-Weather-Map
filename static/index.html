@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+    <link rel="stylesheet" href="styles.css">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NASTAR Weather Map – New Athens</title>
+    <link rel="icon" href="/assets/logo.png" type="image/png">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+</head>
+<body class="dark">
+
+    <div id="container">
+        <div id="sidebar" class="sidebar">
+            <button id="sidebarToggle" class="sidebar-toggle">&rsaquo;</button>
+
+                <div id="branding">
+                    <img src="/assets/logo.png" alt="NASTAR" />
+                    <span>NASTAR Weather Map</span>
+                </div>
+
+            <div class="sidebar-top">
+                <button id="refreshBtn">⟳</button>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="darkModeToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <h3>Layers</h3>
+            <label><input type="checkbox" id="toggle-online"> Online Sensors (<span id="count-online">0</span>)</label><br>
+            <label><input type="checkbox" id="toggle-offline"> Offline Sensors (<span id="count-offline">0</span>)</label><br>
+            <label><input type="checkbox" id="toggle-storm"> Disaster Sensors (<span id="count-storm">0</span>)</label><br>
+            <label><input type="checkbox" id="toggle-radar"> Radar</label><br>
+            <label><input type="checkbox" id="toggle-alerts"> NWS Alerts</label><br>
+        </div>
+
+        <div id="map">
+            <div id="footer">
+               Developed by <a href="https://micronations.wiki/wiki/New_Athens_Space_Technology_and_Aerospace_Research">NASTAR</a>. Hosted in <a href="https://www.newathensgov.org">New Athens</a>.
+            </div>
+        </div>
+
+    </div>
+    <div id="status" class="loading"></div>  
+    
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
