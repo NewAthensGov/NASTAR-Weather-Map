@@ -171,19 +171,25 @@ NASTAR-Weather-Map/
 ### ✅ Prerequisites
 
 - Python 3.7+
-- `Flask` (`pip install flask`)
+- `Flask` (`pip3 install flask`)
+- `Flask CORS` (`pip3 install flask_cors`)
+- `BeautifulSoup4` (`pip3 install bs4`)
+- `Requests` (`pip3 install requests`)
 
 ### 🔧 Installation
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/your-org/nastar-weather-map.git
+   gh repo clone NewAthensGov/NASTAR-Weather-Map
    cd nastar-weather-map
     ```
 
 2. **Install Dependencies**:
    ```bash
    pip3 install flask
+   pip3 install flask_cors
+   pip3 install bs4
+   pip3 install requests
    ```
 
 3. **Run Flask**:
